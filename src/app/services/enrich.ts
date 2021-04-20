@@ -1,22 +1,24 @@
 import { BulkWriteOperation } from 'mongodb';
 import { Histogram } from 'prom-client';
+import { Queue, Worker } from 'bullmq';
+import Redis from 'ioredis';
 import * as assert from 'assert';
 import * as http from 'http';
 import * as https from 'https';
 import * as path from 'path';
 import fetch, { Response } from 'node-fetch';
-import Queue from 'bull';
 
 import { OfferModel, Offer } from '../models/offer';
 
+import { redis } from '../helpers/redis';
 import { BuffereredQueue } from '../utils/buffered-queue';
 import { schema } from '../utils/url';
 
 import { ipfsGatewayUri } from '../../config';
 
-const writer =  new BuffereredQueue<BulkWriteOperation<Offer>>(
+const writer = new BuffereredQueue<BulkWriteOperation<Offer>>(
   async (operations) => OfferModel.bulkWrite(operations).then(),
-  2000,
+  1000,
 );
 
 const durationSeconds = new Histogram({
@@ -24,23 +26,17 @@ const durationSeconds = new Histogram({
   help: 'Duration of NFT enrich in seconds',
 });
 
-export const queue = new Queue<{
+interface Data {
   id: string;
   token_uri: string;
-}>('ENRICH_QUEUE');
+}
+export const queue = new Queue<Data>('INGRESS_QUEUE', { connection: redis });
 
-export const start = async (
-  onReady?: () => void,
-) => {
+export const start = async () => {
   const httpAgent = new http.Agent({ keepAlive: true });
   const httpsAgent = new https.Agent({ keepAlive: true });
 
-  if (onReady) {
-    await queue.isReady();
-    onReady();
-  }
-
-  await queue.process(async function (job) {
+  new Worker<Data>(queue.name, async function (job) {
     const stopTimer = durationSeconds.startTimer();
 
     const { id, token_uri } = job.data;

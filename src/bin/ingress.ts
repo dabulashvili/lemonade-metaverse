@@ -47,10 +47,9 @@ process.on('SIGTERM', async function onSigtermSignal() {
 
 const main = async () => {
   await db.connect();
+  await ingress.start();
 
   logger.info('NFT ingress started - version %s', sourceVersion);
-
-  await ingress.start();
 };
 
 main().catch(fatalHandler);
