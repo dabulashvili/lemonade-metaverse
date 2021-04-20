@@ -29,6 +29,7 @@ export type Offer = {
   __typename?: 'Offer';
   id: Scalars['ID'];
   createdAt: Scalars['BigInt'];
+  updatedAt: Scalars['BigInt'];
   offerContract: Scalars['Bytes'];
   offerId: Scalars['BigInt'];
   tokenURI: Scalars['String'];
@@ -58,6 +59,14 @@ export type Offer_filter = {
   createdAt_lte?: Maybe<Scalars['BigInt']>;
   createdAt_in?: Maybe<Array<Scalars['BigInt']>>;
   createdAt_not_in?: Maybe<Array<Scalars['BigInt']>>;
+  updatedAt?: Maybe<Scalars['BigInt']>;
+  updatedAt_not?: Maybe<Scalars['BigInt']>;
+  updatedAt_gt?: Maybe<Scalars['BigInt']>;
+  updatedAt_lt?: Maybe<Scalars['BigInt']>;
+  updatedAt_gte?: Maybe<Scalars['BigInt']>;
+  updatedAt_lte?: Maybe<Scalars['BigInt']>;
+  updatedAt_in?: Maybe<Array<Scalars['BigInt']>>;
+  updatedAt_not_in?: Maybe<Array<Scalars['BigInt']>>;
   offerContract?: Maybe<Scalars['Bytes']>;
   offerContract_not?: Maybe<Scalars['Bytes']>;
   offerContract_in?: Maybe<Array<Scalars['Bytes']>>;
@@ -135,6 +144,7 @@ export type Offer_filter = {
 export enum Offer_orderBy {
   id = 'id',
   createdAt = 'createdAt',
+  updatedAt = 'updatedAt',
   offerContract = 'offerContract',
   offerId = 'offerId',
   tokenURI = 'tokenURI',
@@ -248,6 +258,6 @@ export type OffersSubscription = (
   { __typename?: 'Subscription' }
   & { offers: Array<(
     { __typename?: 'Offer' }
-    & Pick<Offer, 'id' | 'createdAt' | 'offerContract' | 'offerId' | 'tokenURI' | 'active' | 'seller' | 'currency' | 'price' | 'tokenContract' | 'tokenId' | 'buyer'>
+    & Pick<Offer, 'id' | 'createdAt' | 'updatedAt' | 'offerContract' | 'offerId' | 'tokenURI' | 'active' | 'seller' | 'currency' | 'price' | 'tokenContract' | 'tokenId' | 'buyer'>
   )> }
 );

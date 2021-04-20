@@ -2,9 +2,10 @@ import gql from 'graphql-tag';
 
 export const Offers = gql`
     subscription Offers {
-  offers(orderBy: createdAt, orderDirection: desc) {
+  offers(orderBy: updatedAt, orderDirection: desc) {
     id
     createdAt
+    updatedAt
     offerContract
     offerId
     tokenURI

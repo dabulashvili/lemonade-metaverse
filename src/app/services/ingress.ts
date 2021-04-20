@@ -26,6 +26,7 @@ const process = async function (
       update: {
         $set: {
           created_at: new Date(parseInt(offers[0].createdAt) * 1000),
+          updated_at: new Date(parseInt(offers[0].updatedAt) * 1000),
           offer_contract: offer.offerContract,
           offer_id: offer.offerId,
           token_uri: offer.tokenURI,
