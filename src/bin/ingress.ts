@@ -48,14 +48,9 @@ process.on('SIGTERM', async function onSigtermSignal() {
 const main = async () => {
   await db.connect();
 
-  const { lastBlock } = await ingress.backfill();
-  const subscription = ingress.subscribe(lastBlock);
+  logger.info('NFT ingress started - version %s', sourceVersion);
 
-  await async function check() {
-    if (subscription.closed) throw new Error('subscription is closed');
-
-    logger.info('NFT ingress started - version %s', sourceVersion);
-  }();
+  await ingress.start();
 };
 
 main().catch(fatalHandler);

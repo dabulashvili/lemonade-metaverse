@@ -29,7 +29,7 @@ export const queue = new Queue<{
   token_uri: string;
 }>('ENRICH_QUEUE');
 
-export const process = async (
+export const start = async (
   onReady?: () => void,
 ) => {
   const httpAgent = new http.Agent({ keepAlive: true });

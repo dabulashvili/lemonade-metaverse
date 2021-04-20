@@ -48,7 +48,7 @@ process.on('SIGTERM', async function onSigtermSignal() {
 const main = async () => {
   await db.connect();
 
-  await enrich.process(function onReady() {
+  await enrich.start(function onReady() {
     logger.info('NFT enrich started - version %s', sourceVersion);
   });
 };

@@ -8,8 +8,8 @@ import * as indexer from '../helpers/indexer';
 import { OfferModel, Offer } from '../models/offer';
 import { StateModel } from '../models/state';
 
-import { GetOffers, StreamOffers } from '../../lib/lemonade-marketplace-subgraph/documents.generated';
-import { GetOffersQuery, GetOffersQueryVariables, StreamOffersSubscription, StreamOffersSubscriptionVariables, Offer as OfferType } from '../../lib/lemonade-marketplace-subgraph/types.generated';
+import { GetOffers } from '../../lib/lemonade-marketplace-subgraph/documents.generated';
+import { GetOffersQuery, GetOffersQueryVariables, Offer as OfferType } from '../../lib/lemonade-marketplace-subgraph/types.generated';
 
 const BACKFILL_LAST_BLOCK_KEY = 'backfill_last_block';
 
@@ -17,6 +17,8 @@ const durationSeconds = new Histogram({
   name: 'nft_ingress_duration_seconds',
   help: 'Duration of NFT ingress in seconds',
 });
+
+let timer: NodeJS.Timeout | null = null;
 
 const process = async function (
   offers: OfferType[],
@@ -62,13 +64,9 @@ const process = async function (
   stopTimer();
 };
 
-export const backfill = async () => {
-  const state = await StateModel.findOne(
-    { key: BACKFILL_LAST_BLOCK_KEY },
-    { value: 1 }
-  ).lean<{ value: string }>();
-
-  const lastBlock_gt = state?.value;
+export const poll = async (
+  lastBlock_gt?: string,
+) => {
   let skip = 0;
   const first = 1000;
 
@@ -87,48 +85,44 @@ export const backfill = async () => {
       await process(data.offers);
 
       skip += first;
-      lastBlock = data.offers[length - 1].lastBlock;
+      lastBlock = data.offers[length - 1].lastBlock; // requires asc sort on lastBlock
     }
   } while (length);
 
-  if (lastBlock) {
-    await StateModel.updateOne(
-      { key: BACKFILL_LAST_BLOCK_KEY },
-      { $set: { value: lastBlock } },
-      { upsert: true },
-    );
-  }
-
-  return { lastBlock: lastBlock || lastBlock_gt };
+  return lastBlock;
 };
 
-export const subscribe = (
-  lastBlock_gt?: string,
-) => {
-  const observable = indexer.client.subscribe<StreamOffersSubscription, StreamOffersSubscriptionVariables>({
-    query: StreamOffers,
-    variables: { lastBlock_gt },
-  });
+export const start = async () => {
+  const state = await StateModel.findOne(
+    { key: BACKFILL_LAST_BLOCK_KEY },
+    { value: 1 }
+  ).lean<{ value: string }>();
 
-  return observable.subscribe({
-    next({ data, errors }) {
-      if (errors?.length) {
-        logger.error({ errors });
-      } else if (data?.offers) {
-        logger.debug({ offers: data.offers });
+  let lastBlock_gt = state?.value;
+  const run = async () => {
+    const lastBlock = await poll(lastBlock_gt);
 
-        process(data.offers).catch((error) => {
-          logger.error(error, 'failed to process');
-        });
-      }
-    },
-    error(error) {
-      logger.error(error, 'failed to observe');
-    },
-  });
+    if (lastBlock && lastBlock !== lastBlock_gt) {
+      lastBlock_gt = lastBlock;
+
+      await StateModel.updateOne(
+        { key: BACKFILL_LAST_BLOCK_KEY },
+        { $set: { value: lastBlock } },
+        { upsert: true },
+      );
+    }
+
+    timer = setTimeout(run, 1000);
+  };
+  await run();
 };
 
 export const close = async () => {
-  indexer.close();
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
+
+  indexer.client.stop();
   await enrich.queue.close();
 };
