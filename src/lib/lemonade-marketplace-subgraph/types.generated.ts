@@ -28,8 +28,8 @@ export type Block_height = {
 export type Offer = {
   __typename?: 'Offer';
   id: Scalars['ID'];
+  lastBlock: Scalars['BigInt'];
   createdAt: Scalars['BigInt'];
-  updatedAt: Scalars['BigInt'];
   offerContract: Scalars['Bytes'];
   offerId: Scalars['BigInt'];
   tokenURI: Scalars['String'];
@@ -51,6 +51,14 @@ export type Offer_filter = {
   id_lte?: Maybe<Scalars['ID']>;
   id_in?: Maybe<Array<Scalars['ID']>>;
   id_not_in?: Maybe<Array<Scalars['ID']>>;
+  lastBlock?: Maybe<Scalars['BigInt']>;
+  lastBlock_not?: Maybe<Scalars['BigInt']>;
+  lastBlock_gt?: Maybe<Scalars['BigInt']>;
+  lastBlock_lt?: Maybe<Scalars['BigInt']>;
+  lastBlock_gte?: Maybe<Scalars['BigInt']>;
+  lastBlock_lte?: Maybe<Scalars['BigInt']>;
+  lastBlock_in?: Maybe<Array<Scalars['BigInt']>>;
+  lastBlock_not_in?: Maybe<Array<Scalars['BigInt']>>;
   createdAt?: Maybe<Scalars['BigInt']>;
   createdAt_not?: Maybe<Scalars['BigInt']>;
   createdAt_gt?: Maybe<Scalars['BigInt']>;
@@ -59,14 +67,6 @@ export type Offer_filter = {
   createdAt_lte?: Maybe<Scalars['BigInt']>;
   createdAt_in?: Maybe<Array<Scalars['BigInt']>>;
   createdAt_not_in?: Maybe<Array<Scalars['BigInt']>>;
-  updatedAt?: Maybe<Scalars['BigInt']>;
-  updatedAt_not?: Maybe<Scalars['BigInt']>;
-  updatedAt_gt?: Maybe<Scalars['BigInt']>;
-  updatedAt_lt?: Maybe<Scalars['BigInt']>;
-  updatedAt_gte?: Maybe<Scalars['BigInt']>;
-  updatedAt_lte?: Maybe<Scalars['BigInt']>;
-  updatedAt_in?: Maybe<Array<Scalars['BigInt']>>;
-  updatedAt_not_in?: Maybe<Array<Scalars['BigInt']>>;
   offerContract?: Maybe<Scalars['Bytes']>;
   offerContract_not?: Maybe<Scalars['Bytes']>;
   offerContract_in?: Maybe<Array<Scalars['Bytes']>>;
@@ -143,8 +143,8 @@ export type Offer_filter = {
 
 export enum Offer_orderBy {
   id = 'id',
+  lastBlock = 'lastBlock',
   createdAt = 'createdAt',
-  updatedAt = 'updatedAt',
   offerContract = 'offerContract',
   offerId = 'offerId',
   tokenURI = 'tokenURI',
@@ -251,13 +251,35 @@ export enum _SubgraphErrorPolicy_ {
   deny = 'deny'
 }
 
-export type OffersSubscriptionVariables = Exact<{ [key: string]: never; }>;
+export type OfferFragmentFragment = (
+  { __typename?: 'Offer' }
+  & Pick<Offer, 'id' | 'lastBlock' | 'createdAt' | 'offerContract' | 'offerId' | 'tokenURI' | 'active' | 'seller' | 'currency' | 'price' | 'tokenContract' | 'tokenId' | 'buyer'>
+);
+
+export type GetOffersQueryVariables = Exact<{
+  lastBlock_gt?: Maybe<Scalars['BigInt']>;
+  skip: Scalars['Int'];
+  first: Scalars['Int'];
+}>;
 
 
-export type OffersSubscription = (
+export type GetOffersQuery = (
+  { __typename?: 'Query' }
+  & { offers: Array<(
+    { __typename?: 'Offer' }
+    & OfferFragmentFragment
+  )> }
+);
+
+export type StreamOffersSubscriptionVariables = Exact<{
+  lastBlock_gt?: Maybe<Scalars['BigInt']>;
+}>;
+
+
+export type StreamOffersSubscription = (
   { __typename?: 'Subscription' }
   & { offers: Array<(
     { __typename?: 'Offer' }
-    & Pick<Offer, 'id' | 'createdAt' | 'updatedAt' | 'offerContract' | 'offerId' | 'tokenURI' | 'active' | 'seller' | 'currency' | 'price' | 'tokenContract' | 'tokenId' | 'buyer'>
+    & OfferFragmentFragment
   )> }
 );

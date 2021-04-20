@@ -48,7 +48,8 @@ process.on('SIGTERM', async function onSigtermSignal() {
 const main = async () => {
   await db.connect();
 
-  const subscription = ingress.subscribe();
+  const { lastBlock } = await ingress.backfill();
+  const subscription = ingress.subscribe(lastBlock);
 
   await async function check() {
     if (subscription.closed) throw new Error('subscription is closed');
