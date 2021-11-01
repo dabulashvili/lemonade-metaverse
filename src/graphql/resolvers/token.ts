@@ -2,16 +2,18 @@ import { Arg, Args, Resolver, Info, Root, Query, Subscription } from 'type-graph
 import { GraphQLResolveInfo } from 'graphql';
 
 import { PaginationArgs } from '../types/pagination';
+import { SortArgs } from '../types/sort';
 import { Token, TokenModel } from '../../app/models/token';
 import { TokenWhere } from '../types/token';
 
 import { getFieldTree, getFieldProjection } from '../utils/field';
 import { getFilter, validate } from '../utils/where';
+import { getSort } from '../utils/sort';
 import { getToken, getTokens } from '../../app/services/token';
 import { subscribe } from '../utils/subscription';
 
 const findTokens = async (
-  { skip, limit, where }: PaginationArgs & { where?: TokenWhere | null },
+  { skip, limit, orderBy, orderDirection, where }: PaginationArgs & SortArgs & { where?: TokenWhere | null },
   info: GraphQLResolveInfo,
 ) => {
   const fields = getFieldTree(info);
@@ -19,6 +21,9 @@ const findTokens = async (
 
   return await TokenModel.aggregate([
     { $match: query },
+    ...orderBy ? [{
+      $sort: getSort({ orderBy, orderDirection }),
+    }] : [],
     { $skip: skip },
     { $limit: limit },
     { $project: getFieldProjection(fields) },
@@ -53,10 +58,11 @@ class _TokensQueryResolver {
   @Query(() => [Token])
   async tokens(
     @Info() info: GraphQLResolveInfo,
-    @Args() args: PaginationArgs,
+    @Args() paginationArgs: PaginationArgs,
+    @Args() sortArgs: SortArgs,
     @Arg('where', () => TokenWhere, { nullable: true }) where?: TokenWhere | null,
   ): Promise<Token[]> {
-    return await findTokens({ ...args, where }, info);
+    return await findTokens({ ...paginationArgs, ...sortArgs, where }, info);
   }
 }
 
@@ -77,8 +83,9 @@ class _TokensSubscriptionResolver {
   tokens(
     @Root() root: Token[],
     @Args() _: PaginationArgs,
-    @Arg('query', () => Boolean, { nullable: true }) __?: boolean | null,
-    @Arg('where', () => TokenWhere, { nullable: true }) ___?: TokenWhere | null,
+    @Args() __: SortArgs,
+    @Arg('query', () => Boolean, { nullable: true }) ___?: boolean | null,
+    @Arg('where', () => TokenWhere, { nullable: true }) ____?: TokenWhere | null,
   ): Token[] {
     return root;
   }

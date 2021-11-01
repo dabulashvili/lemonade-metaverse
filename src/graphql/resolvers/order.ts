@@ -4,13 +4,15 @@ import { GraphQLResolveInfo } from 'graphql';
 import { Order, OrderModel } from '../../app/models/order';
 import { OrderWhere } from '../types/order';
 import { PaginationArgs } from '../types/pagination';
+import { SortArgs } from '../types/sort';
 
 import { getFieldTree, getFieldProjection } from '../utils/field';
 import { getFilter, validate } from '../utils/where';
+import { getSort } from '../utils/sort';
 import { subscribe } from '../utils/subscription';
 
 const findOrders = async (
-  { skip, limit, where }: PaginationArgs & { where?: OrderWhere | null },
+  { skip, limit, where, orderBy, orderDirection }: PaginationArgs & SortArgs & { where?: OrderWhere | null },
   info: GraphQLResolveInfo,
 ) => {
   const fields = getFieldTree(info);
@@ -29,6 +31,9 @@ const findOrders = async (
       },
       { $unwind: '$token' },
     ] : [],
+    ...orderBy ? [{
+      $sort: getSort({ orderBy, orderDirection }),
+    }] : [],
     { $skip: skip },
     { $limit: limit },
     { $project: getFieldProjection(fields) },
@@ -40,10 +45,11 @@ class _OrdersQueryResolver {
   @Query(() => [Order])
   async orders(
     @Info() info: GraphQLResolveInfo,
-    @Args() args: PaginationArgs,
+    @Args() paginationArgs: PaginationArgs,
+    @Args() sortArgs: SortArgs,
     @Arg('where', () => OrderWhere, { nullable: true }) where?: OrderWhere | null,
   ): Promise<Order[]> {
-    return await findOrders({ ...args, where }, info);
+    return await findOrders({ ...paginationArgs, ...sortArgs, where }, info);
   }
 }
 
@@ -64,8 +70,9 @@ class _OrdersSubscriptionResolver {
   orders(
     @Root() root: Order[],
     @Args() _: PaginationArgs,
-    @Arg('query', () => Boolean, { nullable: true }) __?: boolean | null,
-    @Arg('where', () => OrderWhere, { nullable: true }) ___?: OrderWhere | null,
+    @Args() __: SortArgs,
+    @Arg('query', () => Boolean, { nullable: true }) ___?: boolean | null,
+    @Arg('where', () => OrderWhere, { nullable: true }) ____?: OrderWhere | null,
   ): Order[] {
     return root;
   }
