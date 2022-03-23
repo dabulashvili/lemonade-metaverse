@@ -32,6 +32,7 @@ export const Ingress = gql`
     contract
     orderId
     createdAt
+    updatedAt
     kind
     open
     openFrom
@@ -81,6 +82,8 @@ export const GetToken = gql`
     orders(orderBy: createdAt, orderDirection: desc) {
       createdAt
       transaction
+      updatedAt
+      updatedTransaction
       maker
       currency {
         id
