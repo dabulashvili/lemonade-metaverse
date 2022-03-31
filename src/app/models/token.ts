@@ -14,9 +14,13 @@ export class TokenRoyalty {
 }
 
 @ObjectType({ isAbstract: true })
-@index({ id: 1 }, { unique: true })
+@index({ network: 1, id: 1 }, { unique: true })
 @modelOptions({ options: { allowMixed: Severity.ALLOW } })
 export class Token {
+  @Field()
+  @prop({ required: true })
+  public network!: string;
+
   @Field()
   @prop({ required: true })
   public id!: string;
