@@ -11,10 +11,10 @@ export class Network {
   public indexerUrl!: string;
 
   @prop({ required: true })
-  public rpcUrl!: string;
+  public providerUrl!: string;
 
   @prop({ type: String })
-  public contracts?: string[];
+  public ingressContracts?: string[];
 }
 
 export const NetworkModel = getModelForClass(Network);
