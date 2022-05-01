@@ -235,10 +235,10 @@ async function processor(state: State, { data }: Job<JobData>) {
   const now = Date.now();
 
   await Promise.all([
-    data.orders_lastBlock_gt !== nextData.orders_lastBlock_gt || data.tokens_createdAt_gt !== nextData.tokens_createdAt_gt &&
+    (data.orders_lastBlock_gt !== nextData.orders_lastBlock_gt || data.tokens_createdAt_gt !== nextData.tokens_createdAt_gt) &&
       StateModel.updateOne(
         { key: state.name },
-        { $set: { value: nextData } },
+        { $set: { value: nextData }, $inc: { __v: 1 } },
         { upsert: true }
       ),
     state.queue.add('*', nextData, jobOptions),
