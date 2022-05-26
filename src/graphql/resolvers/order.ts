@@ -1,7 +1,7 @@
-import { Arg, Args, Resolver, Info, Root, Query, Subscription } from 'type-graphql';
+import { Arg, Args, Resolver, Info, Root, Query, Subscription, FieldResolver, Int, Ctx } from 'type-graphql';
 import { GraphQLResolveInfo } from 'graphql';
 
-import { OrderComplex, OrderSort, OrderWhereComplex } from '../types/order';
+import { Order, OrderComplex, OrderSort, OrderWhereComplex } from '../types/order';
 import { OrderModel } from '../../app/models/order';
 import { Trigger } from '../../app/helpers/pub-sub';
 import { PaginationArgs } from '../types/pagination';
@@ -10,6 +10,9 @@ import { createSubscribe } from '../utils/subscription';
 import { getFieldTree, getFieldProjection } from '../utils/field';
 import { getFilter, validate } from '../utils/where';
 import { getSort } from '../utils/sort';
+import { Context } from 'graphql-ws';
+import { getRates } from '../../app/services/exchange-rates';
+import { ethers } from 'ethers';
 
 const findOrders = async (
   { skip, limit, sort, where }: PaginationArgs & { sort?: OrderSort | null; where?: OrderWhereComplex | null },
@@ -81,5 +84,27 @@ class _OrdersSubscriptionResolver {
     @Arg('where', () => OrderWhereComplex, { nullable: true }) ____?: OrderWhereComplex | null,
   ): OrderComplex[] {
     return root;
+  }
+}
+
+@Resolver(() => Order)
+class _OrderResolver {
+  @FieldResolver(() => Int, { nullable: true })
+  async price_usd(
+    @Ctx() context: Context,
+    @Root() order: Order
+  ) {
+    if (order.currency?.symbol) {
+      const rates = await getRates();
+      if (rates) {
+        const rate = rates[order.currency.symbol]['USD'];
+        const priceCrypto = ethers.BigNumber.from(order.price)
+          .mul(ethers.BigNumber.from(Math.round(rate * 100)))
+          .div(ethers.constants.WeiPerEther.div(ethers.BigNumber.from(10000)))
+          .toNumber();
+
+        return priceCrypto;
+      }
+    }
   }
 }

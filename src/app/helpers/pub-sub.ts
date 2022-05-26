@@ -6,6 +6,7 @@ export enum Trigger {
   EnrichFailed = 'enrich_failed',
   OrderUpdated = 'order_updated',
   TokenUpdated = 'token_updated',
+  ExchangeRateUpdated = 'exchange_rate_updated',
 }
 
 export const pubSub = new RedisPubSub({

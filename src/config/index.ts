@@ -12,5 +12,8 @@ export const redisUrl = env.get('REDIS_URL').default('redis://localhost').asUrlS
 export const slackWebhookUrl = env.get('SLACK_WEBHOOK_URL').asUrlString();
 export const sourceVersion = env.get('SOURCE_VERSION').asString();
 
+export const exchangeRateServiceKey = env.get('EXCHANGE_RATE_SERVICE_KEY').default('f99d716cd15c73bf79101446c5508c1502132ffe2fa21bc926b2268a4bb7e46a').asString();
+export const exchangeRateServiceUrl = env.get('EXCHANGE_RATE_SERVICE_URL').default('https://min-api.cryptocompare.com/data/pricemulti').asUrlString();
+
 export const isProduction = environment === 'production';
 export const webUrl = isProduction ? 'https://lemonade.social/' : 'https://staging.lemonade.social/';

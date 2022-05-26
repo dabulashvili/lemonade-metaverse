@@ -9,6 +9,7 @@ import * as admin from '../app/services/admin';
 import * as db from '../app/helpers/db';
 import * as network from '../app/services/network';
 import * as redis from '../app/helpers/redis';
+import * as exchangeRatesWorker from '../app/services/exchange-rates/worker';
 
 import { app } from '../app';
 
@@ -49,6 +50,8 @@ async function main() {
   await admin.start();
   await db.connect();
   await network.init();
+
+  await exchangeRatesWorker.start();
 
   apolloServer = await createApolloServer(app);
 
