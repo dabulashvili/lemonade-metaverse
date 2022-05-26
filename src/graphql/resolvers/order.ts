@@ -1,10 +1,13 @@
-import { Arg, Args, Resolver, Info, Root, Query, Subscription } from 'type-graphql';
+import { Arg, Args, Resolver, Info, Root, Query, Subscription, FieldResolver, Int, Ctx } from 'type-graphql';
+import { ethers } from 'ethers';
 import { GraphQLResolveInfo } from 'graphql';
+import DataLoader from 'dataloader';
 
-import { OrderComplex, OrderSort, OrderWhereComplex } from '../types/order';
+import { Context } from '../types';
+import { Order, OrderComplex, OrderSort, OrderWhereComplex } from '../types/order';
 import { OrderModel } from '../../app/models/order';
-import { Trigger } from '../../app/helpers/pub-sub';
 import { PaginationArgs } from '../types/pagination';
+import { Trigger } from '../../app/helpers/pub-sub';
 
 import { createSubscribe } from '../utils/subscription';
 import { getFieldTree, getFieldProjection } from '../utils/field';
@@ -81,5 +84,36 @@ class _OrdersSubscriptionResolver {
     @Arg('where', () => OrderWhereComplex, { nullable: true }) ____?: OrderWhereComplex | null,
   ): OrderComplex[] {
     return root;
+  }
+}
+
+@Resolver(() => Order)
+class _OrderResolver {
+  @FieldResolver(() => Int, { nullable: true })
+  async price_usd(
+    @Ctx() context: Context,
+    @Root() order: Order
+  ) {
+    if (!order.currency?.symbol) return;
+
+    context.dataLoaders = context.dataLoaders || {};
+    context.dataLoaders.price_usd = context.dataLoaders.price_usd || new DataLoader<string, string, string>(async (currencies) => {
+      const res: string[] = [];
+
+      for (const _currency of currencies) {
+        res.push('2'); // LINK is 2 dollars
+      }
+
+      return res;
+    });
+
+    const val = await context.dataLoaders.price_usd.load(order.currency.symbol) as string | undefined;
+
+    if (!val) return;
+
+    return ethers.BigNumber.from(order.price)
+      .mul(ethers.BigNumber.from(val))
+      .div(ethers.constants.WeiPerEther.div(100))
+      .toNumber();
   }
 }
