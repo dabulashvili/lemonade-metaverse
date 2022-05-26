@@ -1,19 +1,22 @@
-import { AnyBulkWriteOperation } from 'mongodb';
 import { Counter, Gauge, Histogram } from 'prom-client';
 import { Job, JobsOptions, Queue, QueueScheduler, Worker } from 'bullmq';
+import type { AnyBulkWriteOperation } from 'mongodb';
 
-import { createConnection } from '../../helpers/bullmq';
 import { createToken } from '../token';
+import { Network, networks } from '../network';
+import * as enrichQueue from '../enrich/queue';
+
+import { connection } from '../../helpers/bullmq';
+import { logger } from '../../helpers/pino';
+import { pubSub, Trigger } from '../../helpers/pub-sub';
+
+import { Order, OrderKind, OrderModel } from '../../models/order';
+import { StateModel } from '../../models/state';
+import { Token, TokenModel } from '../../models/token';
+
 import { excludeNull } from '../../utils/object';
 import { getDate } from '../../utils/date';
 import { getParsedUrl, getWebUrl } from '../../utils/url';
-import { logger } from '../../helpers/pino';
-import { Network, networks } from '../network';
-import { Order, OrderKind, OrderModel } from '../../models/order';
-import { pubSub, Trigger } from '../../helpers/pub-sub';
-import { StateModel } from '../../models/state';
-import { Token, TokenModel } from '../../models/token';
-import * as enrich from '../enrich/queue';
 
 import { Ingress } from '../../../lib/lemonade-marketplace/documents.generated';
 import { IngressQuery, IngressQueryVariables } from '../../../lib/lemonade-marketplace/types.generated';
@@ -146,7 +149,7 @@ async function process(state: State, data: IngressQuery) {
   const missing = tokens.filter((token) => !map[token.id]);
   if (missing.length) {
     promises.push(
-      enrich.enqueue(...missing.map((token) => ({
+      enrichQueue.enqueue(...missing.map((token) => ({
         orders: orders.filter((order) => order.token === token.id),
         token,
       }))),
@@ -271,8 +274,8 @@ async function startNetwork(network: Network) {
   const state: State = states[network.name] = {
     name,
     network,
-    queue: new Queue<JobData>(name, { connection: createConnection() }),
-    queueScheduler: new QueueScheduler(name, { connection: createConnection() }),
+    queue: new Queue<JobData>(name, { connection }),
+    queueScheduler: new QueueScheduler(name, { connection }),
   };
   await Promise.all([
     state.queue.waitUntilReady(),
@@ -292,7 +295,7 @@ async function startNetwork(network: Network) {
   state.worker = new Worker<JobData>(
     name,
     processor.bind(null, state),
-    { connection: createConnection() }
+    { connection }
   );
   state.worker.on('failed', function onFailed(job: Job<JobData>, err) {
     ingressesTotal.inc({ network: state.network.name, status: 'fail' });
@@ -311,8 +314,8 @@ async function startNetwork(network: Network) {
   await state.worker.waitUntilReady();
 }
 
-export async function start(): Promise<void> {
-  await enrich.waitUntilReady();
+export async function start() {
+  await enrichQueue.start();
   await Promise.all(Object.values(networks).map(startNetwork));
 }
 
@@ -324,7 +327,7 @@ async function stopNetwork(network: Network) {
   await state.queueScheduler.close();
 }
 
-export async function stop(): Promise<void> {
+export async function stop() {
   await Promise.all(Object.values(networks).map(stopNetwork));
-  await enrich.close();
+  await enrichQueue.stop();
 }

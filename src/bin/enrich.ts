@@ -3,56 +3,53 @@ import 'reflect-metadata';
 import 'source-map-support/register';
 
 import { logger } from '../app/helpers/pino';
+import * as admin from '../app/services/admin';
 import * as db from '../app/helpers/db';
-import * as enrich from '../app/services/enrich/worker';
-import * as metrics from '../app/services/metrics';
 import * as network from '../app/services/network';
 import * as redis from '../app/helpers/redis';
 
+import * as enrichAdmin from '../app/services/enrich/admin';
+import * as enrichWorker from '../app/services/enrich/worker';
+
 import { sourceVersion } from '../config';
 
-process.on('uncaughtException', function onUncaughtException(err) {
+process.on('uncaughtException', (err) => {
   logger.error(err, 'uncaughtException');
 });
 
-process.on('uncaughtRejection', function onUncaughtRejection(err) {
+process.on('uncaughtRejection', (err) => {
   logger.error(err, 'uncaughtRejection');
 });
 
-const shutdown = async () => {
+async function shutdown() {
   try {
-    await enrich.stop();
+    await enrichWorker.stop();
 
     redis.disconnect();
     await Promise.all([
+      admin.stop(),
       db.disconnect(),
-      metrics.stop(),
       network.close(),
     ]);
-
-    process.exit(0);
   } catch (err: any) {
     logger.fatal(err);
     process.exit(1);
   }
-};
+}
 
-process.on('SIGINT', async function onSigintSignal() {
-  await shutdown();
-});
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
-process.on('SIGTERM', async function onSigtermSignal() {
-  await shutdown();
-});
+async function main() {
+  admin.register(enrichAdmin.plugin);
 
-const main = async () => {
-  metrics.start();
+  await admin.start();
   await db.connect();
   await network.init();
 
-  await enrich.start();
+  await enrichWorker.start();
 
   logger.info({ version: sourceVersion }, 'metaverse enrich started');
-};
+}
 
 void main();

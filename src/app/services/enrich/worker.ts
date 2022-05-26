@@ -1,26 +1,28 @@
-import { AnyBulkWriteOperation } from 'mongodb';
 import { Counter, Histogram } from 'prom-client';
+import { ethers } from 'ethers';
 import { Job, Processor, QueueScheduler, Worker } from 'bullmq';
 import * as assert from 'assert';
-import * as ethers from 'ethers';
 import * as http from 'http';
 import * as https from 'https';
 import fetch, { RequestInit } from 'node-fetch';
+import type { AnyBulkWriteOperation } from 'mongodb';
 
 import { JobData, ORDERS_KEY, QUEUE_NAME } from './shared';
 
-import { Order } from '../../models/order';
-import { Token, TokenModel } from '../../models/token';
-
-import { BufferQueue } from '../../utils/buffer-queue';
-import { createConnection } from '../../helpers/bullmq';
-import { erc721MetadataContract, erc2981Contract, raribleRoyaltiesV2 } from '../../helpers/web3';
 import { fetchRegistry } from '../registry';
-import { getParsedUrl, getWebUrl, parseUrl } from '../../utils/url';
-import { logger } from '../../helpers/pino';
 import { networks } from '../network';
+
+import { connection } from '../../helpers/bullmq';
+import { erc721MetadataContract, erc2981Contract, raribleRoyaltiesV2 } from '../../helpers/web3';
+import { logger } from '../../helpers/pino';
 import { pubSub, Trigger } from '../../helpers/pub-sub';
 import { redis } from '../../helpers/redis';
+
+import { Token, TokenModel } from '../../models/token';
+import type { Order } from '../../models/order';
+
+import { BufferQueue } from '../../utils/buffer-queue';
+import { getParsedUrl, getWebUrl, parseUrl } from '../../utils/url';
 
 const FETCH_HEADERS_USER_AGENT = 'Lemonade Metaverse';
 const FETCH_TIMEOUT = 10000;
@@ -176,10 +178,10 @@ let queueScheduler: QueueScheduler | undefined;
 let worker: Worker<JobData> | undefined;
 
 export async function start(): Promise<void> {
-  queueScheduler = new QueueScheduler(QUEUE_NAME, { connection: createConnection() });
+  queueScheduler = new QueueScheduler(QUEUE_NAME, { connection });
   await queueScheduler.waitUntilReady();
 
-  worker = new Worker<JobData>(QUEUE_NAME, processor, { connection: createConnection(), concurrency: WORKER_CONCURRENCY });
+  worker = new Worker<JobData>(QUEUE_NAME, processor, { connection, concurrency: WORKER_CONCURRENCY });
   worker.on('failed', function onFailed(job: Job<JobData>, error) {
     enrichesTotal.inc({ network: job.data.token.network, status: 'fail' });
     pubSub.publish(Trigger.EnrichFailed, job.data.token);

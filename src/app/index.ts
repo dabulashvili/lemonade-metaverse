@@ -1,27 +1,24 @@
-import Koa from 'koa';
+import fastify from 'fastify'
 
-import { logger } from './helpers/pino';
+import { prometheusPlugin } from './plugins/prometheus';
 
-import { errorMiddleware } from './middlewares/error';
-import { loggerMiddleware } from './middlewares/logger';
-import { prometheusMiddleware } from './middlewares/prometheus';
+import * as enrichQueue from './services/enrich/queue';
 
-import { router } from './routers';
+export const app = fastify({
+  logger: true,
+  trustProxy: true,
+});
 
-import { State, Context, ParameterizedContext } from './types';
+app.addHook('onReady', async () => {
+  await enrichQueue.start();
+});
 
-export const app = new Koa<State, Context>();
+app.addHook('onClose', async () => {
+  await enrichQueue.stop();
+});
 
-app.proxy = true;
+app.register(prometheusPlugin);
 
-app.use(errorMiddleware());
-app.use(prometheusMiddleware());
-app.use(loggerMiddleware());
-
-app.use(router.routes());
-app.use(router.allowedMethods());
-
-app.on('error', (error: Error, ctx?: ParameterizedContext) => {
-  if (ctx?.state.logger) ctx.state.logger.error(error);
-  else logger.error(error);
+app.get('/livez', async (_, reply) => {
+  reply.send('OK');
 });

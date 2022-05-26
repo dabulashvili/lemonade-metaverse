@@ -2,6 +2,7 @@ import { Arg, Args, Resolver, Info, Root, Query, Subscription } from 'type-graph
 import { GraphQLResolveInfo } from 'graphql';
 import * as assert from 'assert';
 
+import { OrderDirection, Token_orderBy } from '../../lib/lemonade-marketplace/types.generated';
 import { PaginationArgs } from '../types/pagination';
 import { TokenDetail, TokenSort, TokenComplex, TokenWhereComplex } from '../types/token';
 import { TokenModel } from '../../app/models/token';
@@ -21,13 +22,15 @@ const findTokens = async (
 ) => {
   const fields = getFieldTree(info);
   const filterOrder = where?.order ? getFilter(where.order) : {};
-  const filter = where ? getFilter({ ...where, order: undefined }) : {};
+  const filterRegistry = where?.registry ? getFilter(where.registry) : {};
+  const filter = where ? getFilter({ ...where, order: undefined, registry: undefined }) : {};
 
   if (filterOrder.id) filter.order = filterOrder.id;
+  if (filterRegistry.id) filter.contract = filterRegistry.id;
 
   return await TokenModel.aggregate([
     { $match: filter },
-    ...fields.order ? [
+    ...fields.order || where?.order ? [
       {
         $lookup: {
           from: 'orders',
@@ -40,6 +43,20 @@ const findTokens = async (
         },
       },
       { $unwind: { path: '$order', preserveNullAndEmptyArrays: !where?.order } },
+    ] : [],
+    ...fields.registry || where?.registry ? [
+      {
+        $lookup: {
+          from: 'registries',
+          let: { network: '$network', contract: '$contract' },
+          pipeline: [
+            { $match: { $expr: { $and: [{ $eq: ['$network', '$$network'] }, { $eq: ['$id', '$$contract'] }] }, ...filterRegistry } },
+            { $limit: 1 },
+          ],
+          as: 'registry',
+        },
+      },
+      { $unwind: '$registry' },
     ] : [],
     ...sort ? [{ $sort: getSort(sort) }] : [],
     { $skip: skip },
@@ -73,6 +90,8 @@ class _TokensQueryResolver {
   ): Promise<TokenComplex[]> {
     const variables = {
       where: { id, id_in, contract, creator, tokenId, owner },
+      orderBy: Token_orderBy.createdAt,
+      orderDirection: OrderDirection.desc,
       skip,
       first: limit,
     };
@@ -87,7 +106,7 @@ class _TokensQueryResolver {
       getTokens(network, variables).catch(() => [])
     ));
 
-    return tokens.flat().slice(0, limit);
+    return tokens.flat().sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
   }
 
   @Query(() => [TokenComplex])

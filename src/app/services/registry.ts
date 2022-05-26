@@ -1,9 +1,10 @@
 import { ethers } from 'ethers';
 import LRU from 'lru-cache';
 
-import { erc165Contract, ERC2981_INTERFACE_ID, ERC721Metadata_INTERFACE_ID, ERC721_INTERFACE_ID, RaribleRoyaltiesV2_INTERFACE_ID } from '../helpers/web3';
-
 import { Network } from './network';
+
+import { erc165Contract, ERC2981_INTERFACE_ID, ERC721Metadata_INTERFACE_ID, ERC721_INTERFACE_ID, LemonadePoapV1_INTERFACE_ID, RaribleRoyaltiesV2_INTERFACE_ID } from '../helpers/web3';
+
 import { Registry, RegistryModel } from '../models/registry';
 
 const lru = new LRU<string, Registry>({ max: 1000 });
@@ -19,7 +20,7 @@ async function supportsInterface(contract: ethers.Contract, interfaceId: string)
 async function createRegistry(network: Network, address: string) {
   const contract = erc165Contract.connect(network.provider()).attach(address);
 
-  const [{ isERC721, supportsERC721Metadata }, supportsERC2981, supportsRaribleRoyaltiesV2] = await Promise.all([
+  const [{ isERC721, supportsERC721Metadata }, supportsERC2981, supportsLemonadePoapV1, supportsRaribleRoyaltiesV2] = await Promise.all([
     (async () => {
       const supportsERC721Metadata = await supportsInterface(contract, ERC721Metadata_INTERFACE_ID);
       const supportsERC165 = supportsERC721Metadata !== null;
@@ -30,6 +31,7 @@ async function createRegistry(network: Network, address: string) {
       };
     })(),
     supportsInterface(contract, ERC2981_INTERFACE_ID),
+    supportsInterface(contract, LemonadePoapV1_INTERFACE_ID),
     supportsInterface(contract, RaribleRoyaltiesV2_INTERFACE_ID),
   ]);
 
@@ -39,6 +41,7 @@ async function createRegistry(network: Network, address: string) {
   if (isERC721) registry.isERC721 = true;
   if (supportsERC721Metadata) registry.supportsERC721Metadata = true;
   if (supportsERC2981) registry.supportsERC2981 = true;
+  if (supportsLemonadePoapV1) registry.supportsLemonadePoapV1 = true;
   if (supportsRaribleRoyaltiesV2) registry.supportsRaribleRoyaltiesV2 = true;
 
   return registry;
